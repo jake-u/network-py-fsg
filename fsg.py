@@ -1,5 +1,3 @@
-# v8/19 4:23
-
 import sys
 import copy
 import functools
@@ -536,6 +534,7 @@ class PGManager:
     self.currentParticle = Particle.SAND
     self.mradius = 1
     self.clearing = False
+    self.drawUIText = True
 
     self.scale = scale
 
@@ -632,6 +631,8 @@ class PGManager:
             self.netupdate = struct.pack('<?bhhb?', self.paused, 0, self.mx, self.my, self.currentParticle, True)
           else:
             self.clearSimScreen()
+        elif e.key == pygame.K_h:
+          self.drawUIText = not self.drawUIText
     
     if self.mradius < 1:
       self.mradius = 1
@@ -740,19 +741,21 @@ class PGManager:
 
     pygame.draw.line(self.screen, 0xDDDDDD, (0, self.buttonPadding * 2), (self.width, self.buttonPadding * 2), 1)
 
-    self.screen.blit(textRenderer, (5, self.buttonPadding * 2.1, 100, self.buttonPadding))
+    if (self.drawUIText):
+      self.screen.blit(textRenderer, (5, self.buttonPadding * 2.1, 100, self.buttonPadding))
 
-    if (self.paused):
+    if (self.paused and self.drawUIText):
       textRenderer = self.font.render("PAUSED", False, (51, 51, 51))
       self.screen.blit(textRenderer, (5, self.buttonPadding * 3.1, 100, self.buttonPadding))
 
     # render notifications & measure distance from edge
     i = 1
-    for n in reversed(self.notifs):
-      textRenderer = self.font.render(n[0], False, n[2])
-      leng = functools.reduce(lambda acc, cur: cur[4] + acc, self.font.metrics(n[0]), 0)
-      self.screen.blit(textRenderer, (WINDOW_WIDTH - (9 + leng), (WINDOW_HEIGHT - (self.buttonPadding * i)), 100, self.buttonPadding))
-      i += 1
+    if self.drawUIText:
+      for n in reversed(self.notifs):
+        textRenderer = self.font.render(n[0], False, n[2])
+        leng = functools.reduce(lambda acc, cur: cur[4] + acc, self.font.metrics(n[0]), 0)
+        self.screen.blit(textRenderer, (WINDOW_WIDTH - (9 + leng), (WINDOW_HEIGHT - (self.buttonPadding * i)), 100, self.buttonPadding))
+        i += 1
 
     if self.connected:
       textRenderer = self.font.render('C', False, (16, 240, 240))
