@@ -1,4 +1,4 @@
-# v3/18 12:16
+# v8/19 4:23
 
 import sys
 import copy
@@ -515,6 +515,9 @@ class FSG:
   def attemptPlace(self, x, y, pt):
     if (not self.particlePresent(x, y)):
       self.particles[x][y] = pt
+  
+  def clearScreen(self):
+    self.particles = numpy.full((self.width, self.height), Particle.NULL)
 
   
 
@@ -532,6 +535,7 @@ class PGManager:
     self.rmy = 0
     self.currentParticle = Particle.SAND
     self.mradius = 1
+    self.clearing = False
 
     self.scale = scale
 
@@ -581,6 +585,8 @@ class PGManager:
     pygame.quit()
 
   def drawParticles(self, radius, mx, my, pt):
+    if radius == 0:
+      return
     endPoint = radius
     endPointY = radius
     if (mx + radius > self.width / self.scale):
@@ -615,12 +621,17 @@ class PGManager:
         if e.key == pygame.K_SPACE:
           self.paused = not self.paused
           if self.connected:
-            self.netupdate = struct.pack('<?bhhb', self.paused, 0, self.mx, self.my, self.currentParticle)
+            self.netupdate = struct.pack('<?bhhb?', self.paused, 0, self.mx, self.my, self.currentParticle, False)
         elif e.key == pygame.K_c:
           if self.connected:
             self.disconnectFromServer()
           else:
             self.connectToServer()
+        elif e.key == pygame.K_r:
+          if self.connected:
+            self.netupdate = struct.pack('<?bhhb?', self.paused, 0, self.mx, self.my, self.currentParticle, True)
+          else:
+            self.clearSimScreen()
     
     if self.mradius < 1:
       self.mradius = 1
@@ -629,7 +640,8 @@ class PGManager:
       if self.rmy > self.buttonPadding * 2:
         self.drawParticles(self.mradius, self.mx, self.my, self.currentParticle)
         if self.connected:
-          self.netupdate = struct.pack('<?bhhb', self.paused, self.mradius, self.mx, self.my, self.currentParticle)
+          self.netupdate = struct.pack('<?bhhb?', self.paused, self.mradius, self.mx, self.my, self.currentParticle, False)
+
 
     for i, bt in enumerate(self.buttons):
       if ((self.rmx > ((i + 1) * self.buttonHorizontalPadding) - (self.buttonSize / 2) and self.rmx < ((i + 1) * self.buttonHorizontalPadding) + (self.buttonSize / 2)) and self.rmy < self.buttonPadding * 2):
@@ -643,6 +655,9 @@ class PGManager:
       else:
         self.buttonsHover[i] = False
         
+  def clearSimScreen(self):
+    self.fsg.clearScreen()
+    self.notifs.append(["Screen cleared", 60, (192, 192, 48)])
 
   def pauseDeltaTime(self):
     self.clock.tick(self.fps)
@@ -751,7 +766,7 @@ WINDOW_WIDTH = 600
 WINDOW_HEIGHT = 480
 SCALE = 4
 # address of server
-IP = '192.168.1.12'
+IP = '192.168.1.5'
 PORT = 40999 
 
 """
@@ -762,17 +777,21 @@ PORT = 40999
   2 bytes = mouse Y
   1 byte = element type
 
-  '<?bhhb'
+  '<?bhhb?'
 """
 
 def checkUpdates(game):
   try:
-    data = struct.unpack('<?bhhb', game.socket.recv(1024))
+    data = struct.unpack('<?bhhb?', game.socket.recv(1024))
     paused = (data[0] == 1)
     rad = data[1]
     mouseX = data[2]
     mouseY = data[3]
     type = data[4]
+    shouldClear = (data[5] == 1)
+
+    if (shouldClear):
+      game.clearSimScreen()
 
     random.seed(5)
     game.drawParticles(rad, mouseX, mouseY, type)
